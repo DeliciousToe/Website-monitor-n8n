@@ -7,13 +7,13 @@ A professional-grade, state-aware n8n workflow designed to monitor `https://cybe
 ## 🌟 Key Features
 
 1. **Uptime & Readability Checks**:
-   - Performs an HTTP GET request to `https://cyberresonance.io` with a `10s` timeout.
+   - Performs an HTTP GET request to `https://[...]` with a `10s` timeout.
    - Sends a custom browser `User-Agent` header to bypass Cloudflare/Hostinger CDN security challenge pages.
    - Verifies the response status code is `200`.
-   - Inspects the HTML body to ensure readability using keywords: `"Cyber Resonance"` or `"Scalable Security"`.
+   - Inspects the HTML body to ensure readability using keywords
 
 2. **Out-of-Band DNS Diagnostics**:
-   - If the site is unreachable or fails readability, the workflow queries Cloudflare's public DNS-over-HTTPS API (`https://cloudflare-dns.com/dns-query`) for the `A` records of `cyberresonance.io`.
+   - If the site is unreachable or fails readability, the workflow queries Cloudflare's public DNS-over-HTTPS API (`https://cloudflare-dns.com/dns-query`) for the `A` records of `https://[...]`.
    - This differentiates between DNS propagation/resolution issues and server-side failures (e.g. webserver crashes).
 
 3. **Intelligent State-Aware Notification (No Spam)**:
@@ -29,9 +29,9 @@ A professional-grade, state-aware n8n workflow designed to monitor `https://cybe
 
 ## 📁 Project Structure
 
-* [Website_Monitor_Workflow.json](file:///c:/KacperWoźniak/Cloud_enchancement/Antigravity/n8n/website%20monitor/Website_Monitor_Workflow.json): The exportable JSON workflow file for direct import into n8n.
-* [Website up or down.md](file:///c:/KacperWoźniak/Cloud_enchancement/Antigravity/n8n/website%20monitor/Website%20up%20or%20down.md): Context and tutorial helper.
-* [README.md](file:///c:/KacperWoźniak/Cloud_enchancement/Antigravity/n8n/website%20monitor/README.md): This documentation.
+* [Website_Monitor_Workflow.json]: The exportable JSON workflow file for direct import into n8n.
+* [Website up or down.md]: Context and tutorial helper.
+* [README.md]: This documentation.
 
 ---
 
@@ -41,7 +41,7 @@ Follow these simple steps to deploy the monitor in your n8n instance:
 
 ### Step 1: Import into n8n
 1. Open your n8n canvas.
-2. Open the file [Website_Monitor_Workflow.json](file:///c:/KacperWoźniak/Cloud_enchancement/Antigravity/n8n/website%20monitor/Website_Monitor_Workflow.json) and copy its entire content.
+2. Open the file [Website_Monitor_Workflow.json] and copy its entire content.
 3. Paste the contents directly into your n8n workspace canvas (or select **Import from File** in the top-right menu).
 
 ### Step 2: Configure the Discord Webhook
