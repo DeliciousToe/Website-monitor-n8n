@@ -1,0 +1,3 @@
+# Exclude active private workflows containing actual credentials/webhooks
+Mine workflow/
+Mine workflow

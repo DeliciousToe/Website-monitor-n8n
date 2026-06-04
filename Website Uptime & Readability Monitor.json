@@ -1,0 +1,322 @@
+{
+  "name": "Website Uptime & Readability Monitor",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "931f0377-3e52-4e66-b8f7-e4808c6f2913",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "ade1fa4d-e846-4054-982e-613d98b62451",
+      "name": "Schedule Trigger (Every 15m)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -624,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "YOUR_URL_HERE",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "a9559e69-9f3a-4602-bc56-b7aabd79a952",
+      "name": "Check Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -336,
+        160
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst processed = [];\n\nfor (const item of items) {\n  const json = item.json;\n  const body = json.data || json.body || \"\";\n  const statusCode = json.statusCode;\n  \n  let isHealthy = false;\n  let reason = \"\";\n  \n  const bodyLower = typeof body === 'string' ? body.toLowerCase() : JSON.stringify(body).toLowerCase();\n  const hasKeyword = bodyLower.includes(\"KEYWORD_#1\") || bodyLower.includes(\"KEYWORD_#2\") || bodyLower.includes(\"KEYWORD_#3\");\n  \n  if (statusCode === 200 && hasKeyword) {\n    isHealthy = true;\n  } else if (statusCode !== 200) {\n    isHealthy = false;\n    reason = `HTTP status code is ${statusCode || 'Unknown/Timeout'} instead of 200.`;\n  } else if (!hasKeyword) {\n    isHealthy = false;\n    reason = \"Website is up, but readability check failed (keywords like 'Cyber Resonance', 'Scalable Security', or 'Software' not found on the page).\";\n  }\n  \n  processed.push({\n    json: {\n      isHealthy,\n      statusCode: statusCode || null,\n      keywordFound: hasKeyword,\n      reason,\n      timestamp: new Date().toISOString(),\n      url: \"YOUR_URL_HERE\"\n    }\n  });\n}\n\nreturn processed;"
+      },
+      "id": "fffe87d3-6570-4cef-aaae-76babb0fbd3b",
+      "name": "Evaluate Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "health-check-healthy",
+              "leftValue": "={{ $json.isHealthy }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dbace8f2-f9e9-4eb8-8ceb-476e52c0beeb",
+      "name": "Is Healthy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        144,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://cloudflare-dns.com/dns-query?name=YOUR_DOMAIN_NAME_HERE&type=A",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "75bdbf2f-9f1d-4ad1-afab-1e305bfd557c",
+      "name": "Run DNS Diagnostics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        352,
+        288
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const dnsData = $input.first()?.json;\nconst healthData = $('Evaluate Health').first().json;\n\nlet dnsStatus = \"Unknown\";\nlet dnsIPs = [];\n\nif (dnsData && dnsData.Answer) {\n  dnsStatus = \"RESOLVED\";\n  dnsIPs = dnsData.Answer.map(ans => ans.data);\n} else if (dnsData && dnsData.Status === 3) {\n  dnsStatus = \"NXDOMAIN (Domain does not exist)\";\n} else {\n  dnsStatus = \"FAILED TO RESOLVE\";\n}\n\nreturn [{\n  json: {\n    ...healthData,\n    dnsStatus,\n    dnsIPs,\n    diagnosticSummary: `DNS Check: ${dnsStatus} ${dnsIPs.length > 0 ? '(' + dnsIPs.join(', ') + ')' : ''}`\n  }\n}];"
+      },
+      "id": "352760f8-a266-4727-a066-40dd4f24fff0",
+      "name": "Process Diagnostics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst processed = [];\n\n// Retrieve static data for state management\nconst staticData = $getWorkflowStaticData('global');\nconst previousState = staticData.previousState || 'up';\n\nfor (const item of items) {\n  const json = item.json;\n  const currentState = json.isHealthy ? 'up' : 'down';\n  \n  let triggerAlert = false;\n  let alertType = '';\n  \n  if (currentState === 'down' && previousState === 'up') {\n    triggerAlert = true;\n    alertType = 'down';\n    staticData.previousState = 'down';\n  } else if (currentState === 'up' && previousState === 'down') {\n    triggerAlert = true;\n    alertType = 'recovery';\n    staticData.previousState = 'up';\n  } else {\n    triggerAlert = false;\n  }\n  \n  processed.push({\n    json: {\n      ...json,\n      previousState,\n      currentState,\n      triggerAlert,\n      alertType\n    }\n  });\n}\n\nreturn processed;"
+      },
+      "id": "86f408ac-bf8b-47f2-9bcd-693010a6c96d",
+      "name": "Check State & Filter Notifications",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "should-trigger-alert",
+              "leftValue": "={{ $json.triggerAlert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7adc1320-41f2-4b69-bc4f-23e7d34bdf58",
+      "name": "Should Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## What to configure:\n\n1. Provide URL in \"Check Website\"\n2.  In \"Run DNS Diagnostics\" provide your domain name in URL where marked\n3. In \"Evaluate Health\" change:\n - 13 line with words on your page\n - 32 line with your website URL",
+        "height": 208,
+        "width": 384
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -144
+      ],
+      "id": "de771dce-0e5a-4ef6-b842-8a807f365099",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Check Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (Every 15m)": {
+      "main": [
+        [
+          {
+            "node": "Check Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Website": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Health": {
+      "main": [
+        [
+          {
+            "node": "Is Healthy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Healthy?": {
+      "main": [
+        [
+          {
+            "node": "Check State & Filter Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run DNS Diagnostics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run DNS Diagnostics": {
+      "main": [
+        [
+          {
+            "node": "Process Diagnostics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Diagnostics": {
+      "main": [
+        [
+          {
+            "node": "Check State & Filter Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check State & Filter Notifications": {
+      "main": [
+        [
+          {
+            "node": "Should Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Alert?": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "b8bfa048-97fc-4ed5-9f11-f8e4b57a7d10",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b442e40fe32dc8fd6a31bed3b27df7767976fb3a6a62af8fdb5f9305df3ef5df"
+  },
+  "id": "BPafORat57mBjcy9",
+  "tags": []
+}
